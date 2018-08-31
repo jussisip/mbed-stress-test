@@ -20,7 +20,7 @@
  * Please consult the documentation under the test-case functions for
  * a description of the individual test case.
  */
- 
+
 #include "mbed.h"
 
 #include "utest/utest.h"
@@ -58,19 +58,19 @@ void download(size_t size)
     EventQueue queue(32 * EVENTS_EVENT_SIZE);
     // Create a thread that'll run the event queue's dispatch function
     Thread t;
-    
+
     // Start the event queue's dispatch thread
-    t.start(callback(&queue, &EventQueue::dispatch_forever));    
-    
+    t.start(callback(&queue, &EventQueue::dispatch_forever));
+
     int result = -1;
 
     /* setup TLS socket */
-    DTLSSocket* dtlssocket = new DTLSSocket(interface, 
-                                            /*"lootbox.s3.dualstack.us-west-2.amazonaws.com"*/"192.168.100.5", 
-                                            /*443*/4430, 
+    DTLSSocket* dtlssocket = new DTLSSocket(interface,
+                                            /*"lootbox.s3.dualstack.us-west-2.amazonaws.com"*/"mbedtls.mbedcloudtesting.com",
+                                            /*443*/4430,
                                             (const char*)SSL_CA_PEM,
                                             sizeof(SSL_CA_PEM));
-    
+
     TEST_ASSERT_NOT_NULL_MESSAGE(dtlssocket, "failed to instantiate dtlssocket");
 
     dtlssocket->set_debug(true);
@@ -86,12 +86,12 @@ void download(size_t size)
         }
         printf("connection failed. retry %d of %d\r\n", tries, MAX_RETRIES);
     }
-    
+
 //    TEST_ASSERT_EQUAL_INT_MESSAGE(0, result, "failed to connect");
 
     if ((result == MBEDTLS_ERR_SSL_WANT_READ) || (result == MBEDTLS_ERR_SSL_WANT_WRITE)) {
         printf("Wait for successfull handshake prior proceeding, reason %d.\r\n", result);
-        while (!timing_context.is_handshake_success) {            
+        while (!timing_context.is_handshake_success) {
         };
     }
 
@@ -130,9 +130,9 @@ void download(size_t size)
     TEST_ASSERT_NOT_NULL_MESSAGE(receive_buffer, "failed to allocate receive buffer");
 
     size_t expected_bytes = sizeof(story);
-    
+
     printf("expected_bytes: %d\r\n", expected_bytes);
-    
+
     size_t received_bytes = 0;
     uint32_t body_index = 0;
 
@@ -148,11 +148,11 @@ void download(size_t size)
         do
         {
 //            printf("mbedtls_ssl_read: \r\n");
-            
+
             result = mbedtls_ssl_read(dtlssocket->get_ssl_context(), (unsigned char*) receive_buffer, size/* - 1*/);
             TEST_ASSERT_MESSAGE((result == MBEDTLS_ERR_SSL_WANT_READ) || (result >= 0), "failed to read ssl");
 
-//            printf("+result: %d\r\n", result);
+            printf("+result: %d\r\n", result);
 
             if (result > 0)
             {
@@ -221,7 +221,7 @@ static control_t download_4k(const size_t call_count)
 
 utest::v1::status_t greentea_setup(const size_t number_of_cases)
 {
-    GREENTEA_SETUP(30*60, "default_auto");
+    GREENTEA_SETUP(60, "default_auto");
     return greentea_test_setup_handler(number_of_cases);
 }
 
@@ -238,17 +238,17 @@ int main()
 }
 
 int ssl_handshake_continue(timing_context_t *cntx)
-{    
+{
     int ret = ~MBEDTLS_ERR_SSL_WANT_READ;
 
     while (ret != MBEDTLS_ERR_SSL_WANT_READ) {
-        printf("mbedtls_ssl_handshake_step\r\n");                
-        
+        printf("mbedtls_ssl_handshake_step\r\n");
+
         ret = mbedtls_ssl_handshake_step(cntx->ssl);
         printf("SSL state: %d\r\n", cntx->ssl->state);
         if (MBEDTLS_ERR_SSL_HELLO_VERIFY_REQUIRED == ret) {
             mbedtls_ssl_session_reset(cntx->ssl);
-#if 0            
+#if 0
 #if defined(MBEDTLS_KEY_EXCHANGE_ECJPAKE_ENABLED)
             if (mbedtls_ssl_set_hs_ecjpake_password(cntx->ssl, sec->_pw, sec->_pw_len) != 0) {
                 return -1;
@@ -271,29 +271,29 @@ int ssl_handshake_continue(timing_context_t *cntx)
 
     return -1;
 }
-    
+
 void on_timeout(timing_context_t *cntx)
 {
     printf("!!on_timeout\r\n");
-   
+
     if (cntx->fin_ms > cntx->int_ms) {
         /* Intermediate expiry. */
         printf("!!Intermediate expiry\r\n");
-        
+
         cntx->is_intermediate_expire = true;
         cntx->fin_ms                -= cntx->int_ms;
-        
+
         cntx->timer_id = cntx->event_q->call_in(cntx->int_ms, on_timeout, cntx);
         MBED_ASSERT(cntx->timer_id != 0);
-    } else {    
-        /* Final expiry. */        
-        printf("!!Final expiry\r\n");        
-        
-        cntx->is_final_expire = true;        
+    } else {
+        /* Final expiry. */
+        printf("!!Final expiry\r\n");
+
+        cntx->is_final_expire = true;
         const int err         = ssl_handshake_continue(cntx);
         if (MBEDTLS_ERR_SSL_TIMEOUT == err) {
-            printf("MBEDTLS_ERR_SSL_TIMEOUT\r\n");        
-            
+            printf("MBEDTLS_ERR_SSL_TIMEOUT\r\n");
+
             mbedtls_ssl_session_reset(cntx->ssl);
         }
     }
@@ -301,22 +301,22 @@ void on_timeout(timing_context_t *cntx)
 
 void mbedtls_timing_set_delay( void *data, uint32_t int_ms, uint32_t fin_ms)
 {
-#if 0    
+#if 0
     printf("!!mbedtls_timing_set_delay\r\n");
     printf("int_ms: %u\r\n", (unsigned int)int_ms);
     printf("fin_ms: %u\r\n", (unsigned int)fin_ms);
-#endif     
+#endif
     timing_context_t *cntx = (timing_context_t *)data;
     MBED_ASSERT(cntx != NULL);
 //    MBED_ASSERT(int_ms != 0);
-//    MBED_ASSERT(fin_ms != 0);    
-    
+//    MBED_ASSERT(fin_ms != 0);
+
     if ((int_ms > 0) && (fin_ms > 0)) {
         cntx->int_ms = int_ms;
         cntx->fin_ms = fin_ms;
-        
+
         MBED_ASSERT(cntx->timer_id == 0);
-        
+
         printf("!!start timer\r\n");
         cntx->timer_id = cntx->event_q->call_in(cntx->int_ms, on_timeout, cntx);
         MBED_ASSERT(cntx->timer_id != 0);
@@ -324,8 +324,8 @@ void mbedtls_timing_set_delay( void *data, uint32_t int_ms, uint32_t fin_ms)
 //        printf("!!clear timer\r\n");
         cntx->int_ms   = 0;
         cntx->fin_ms   = 0;
-        
-        if (cntx->timer_id != 0) {      
+
+        if (cntx->timer_id != 0) {
             cntx->event_q->cancel(cntx->timer_id);
             cntx->timer_id = 0;
         }
@@ -333,15 +333,15 @@ void mbedtls_timing_set_delay( void *data, uint32_t int_ms, uint32_t fin_ms)
         /* No implementation required. */
     }
 
-    
-    
-    
-#if 0    
+
+
+
+#if 0
     if (cntx->timer_id != 0) {
         cntx->event_q->cancel(cntx->timer_id);
     }
-#endif    
-        
+#endif
+
 #if 0
 sec->timer.int_ms = int_ms;
             sec->timer.fin_ms = fin_ms;
@@ -357,18 +357,18 @@ sec->timer.int_ms = int_ms;
             sec->timer.fin_ms = 0;
             sec->timer.int_ms = 0;
             sec->timer.timer = NULL;
-#endif             
-#if 0 // original implementation from timing.c     
+#endif
+#if 0 // original implementation from timing.c
     printf("!!mbedtls_timing_set_delay \r\n");
-    
+
     mbedtls_timing_delay_context *ctx = (mbedtls_timing_delay_context *) data;
 
     ctx->int_ms = int_ms;
     ctx->fin_ms = fin_ms;
 
     if( fin_ms != 0 )
-        (void) mbedtls_timing_get_timer( &ctx->timer, 1 );    
-#endif // 0    
+        (void) mbedtls_timing_get_timer( &ctx->timer, 1 );
+#endif // 0
 }
 
 /**
@@ -386,37 +386,37 @@ sec->timer.int_ms = int_ms;
 int mbedtls_timing_get_delay(void *data)
 {
     timing_context_t *cntx = (timing_context_t *)data;
-    
+
     if (cntx->is_final_expire) {
         /* Final delay is passed. */
 //        printf("!!mbedtls_timing_get_delay: Final delay is passed\r\n");
-        
+
         return 2;
     }
     if (cntx->timer_id == 0){
         /* Cancelled. */
-//        printf("!!mbedtls_timing_get_delay: Cancelled\r\n");        
-    
+//        printf("!!mbedtls_timing_get_delay: Cancelled\r\n");
+
         return -1;
     }
     if (cntx->is_intermediate_expire) {
         /* Only the intermediate delay is passed. */
-//        printf("!!mbedtls_timing_get_delay: Only the intermediate delay is passed\r\n");                
-        
+//        printf("!!mbedtls_timing_get_delay: Only the intermediate delay is passed\r\n");
+
         return 1;
     }
-    
-    printf("!!mbedtls_timing_get_delay: none of the delays are passed\r\n");                    
+
+    printf("!!mbedtls_timing_get_delay: none of the delays are passed\r\n");
     return 0;
-    
-    
-    
+
+
+
 //    MBED_ASSERT(false);
-    
-    return 0;    
-#if 0 // original implementation from timing.c         
+
+    return 0;
+#if 0 // original implementation from timing.c
     printf("!!mbedtls_timing_get_delay \r\n");
-    
+
     mbedtls_timing_delay_context *ctx = (mbedtls_timing_delay_context *) data;
     unsigned long elapsed_ms;
 
@@ -432,5 +432,5 @@ int mbedtls_timing_get_delay(void *data)
         return( 1 );
 
     return( 0 );
-#endif // 0    
+#endif // 0
 }

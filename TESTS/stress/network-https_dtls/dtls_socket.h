@@ -36,24 +36,27 @@
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/error.h"
 #include "mbedtls/timing.h"
+#include "nsapi_types.h"
+#include "UDPSocket.h"
+class NetworkInterface;
 
 #if DEBUG_LEVEL > 0
 #include "mbedtls/debug.h"
 #endif
-    
+
 #include "EventQueue.h"
 
 typedef struct {
     events::EventQueue  *event_q;
     mbedtls_ssl_context *ssl;
-    uint32_t             int_ms; 
+    uint32_t             int_ms;
     uint32_t             fin_ms;
     int                  timer_id;
     volatile bool        is_final_expire;
     bool                 is_intermediate_expire;
     volatile bool        is_handshake_success;
 } timing_context_t;
-    
+
 /**
  * \brief DTLSSocket a wrapper around UDPSocket for interacting with TLS servers
  */
@@ -109,7 +112,7 @@ public:
 #if 0
         if ((ret = mbedtls_x509_crt_parse/*mbedtls_x509_crt_parse_der*/(&_cacert, (const unsigned char *)_ssl_ca_der,
                            strlen(_ssl_ca_der) + 1)) != 0) {
-#endif                                
+#endif
         if ((ret = mbedtls_x509_crt_parse(&_cacert, (const unsigned char *)_ssl_ca_der, _ssl_ca_der_len)) != 0) {
             print_mbedtls_error("mbedtls_x509_crt_parse", ret);
             _error = ret;
@@ -118,7 +121,7 @@ public:
 
         if ((ret = mbedtls_ssl_config_defaults(&_ssl_conf,
                         MBEDTLS_SSL_IS_CLIENT,
-#if 0                        
+#if 0
                         MBEDTLS_SSL_TRANSPORT_STREAM,
 #endif
                         MBEDTLS_SSL_TRANSPORT_DATAGRAM,
@@ -128,9 +131,9 @@ public:
             return _error;
         }
 #if 0 // not required as timeout increased in the server side
-        mbedtls_ssl_conf_handshake_timeout(&_ssl_conf, 2000, MBEDTLS_SSL_DTLS_TIMEOUT_DFL_MAX);        
-#endif         
-        
+        mbedtls_ssl_conf_handshake_timeout(&_ssl_conf, 2000, MBEDTLS_SSL_DTLS_TIMEOUT_DFL_MAX);
+#endif
+
         mbedtls_ssl_conf_ca_chain(&_ssl_conf, &_cacert, NULL);
         mbedtls_ssl_conf_rng(&_ssl_conf, mbedtls_ctr_drbg_random, &_ctr_drbg);
 
@@ -158,25 +161,25 @@ public:
 
         /* Connect to the server */
         if (_debug) mbedtls_printf("Connecting to %s:%d\r\n", _hostname, _port);
-#if 0        
+#if 0
         ret = _udpsocket->connect(_hostname, _port);
         if (ret != NSAPI_ERROR_OK) {
             if (_debug) mbedtls_printf("Failed to connect\r\n");
             onError(_udpsocket, -1);
             return _error;
         }
-#endif     
-        ret = _udpsocket->bind(_port);   
+#endif
+        ret = _udpsocket->bind(_port);
         if (ret != NSAPI_ERROR_OK) {
             if (_debug) mbedtls_printf("Failed to bind\r\n");
             onError(_udpsocket, -1);
             return _error;
-        }        
+        }
 
         mbedtls_printf("mbedtls_ssl_set_timer_cb\r\n");
         cntx->ssl = &_ssl;
         mbedtls_ssl_set_timer_cb(&_ssl, cntx, mbedtls_timing_set_delay, mbedtls_timing_get_delay);
-#if 0        
+#if 0
        /* Start the handshake, the rest will be done in onReceive() */
         if (_debug) mbedtls_printf("Starting the TLS handshake...\r\n");
         ret = mbedtls_ssl_handshake(&_ssl);
@@ -195,13 +198,13 @@ public:
 
     do {
             cntx->is_final_expire = false;
-            
+
            /* Start the handshake, the rest will be done in onReceive() */
             if (_debug) mbedtls_printf("STarting the TLS handshake...\r\n");
             ret = mbedtls_ssl_handshake(&_ssl);
             mbedtls_printf("TLS handshake finished: %d\r\n", ret);
             mbedtls_printf("SSL state: %d\r\n", cntx->ssl->state);
-                        
+
             if (ret < 0) {
                 if (ret != MBEDTLS_ERR_SSL_WANT_READ &&
                     ret != MBEDTLS_ERR_SSL_WANT_WRITE) {
@@ -332,9 +335,9 @@ protected:
     static int ssl_recv(void *ctx, unsigned char *buf, size_t len) {
         int recv = -1;
         UDPSocket *socket = static_cast<UDPSocket *>(ctx);
-#if 0        
+#if 0
         recv = socket->recv(buf, len);
-#endif         
+#endif
         recv = socket->recvfrom(NULL, buf, len);
 
         if (NSAPI_ERROR_WOULD_BLOCK == recv) {
@@ -354,7 +357,7 @@ protected:
     static int ssl_send(void *ctx, const unsigned char *buf, size_t len) {
        int size = -1;
         UDPSocket *socket = static_cast<UDPSocket *>(ctx);
-#if 0        
+#if 0
         size = socket->send(buf, len);
 #endif
         size = socket->sendto(_hostname, _port, buf, len);
@@ -381,7 +384,7 @@ private:
     const char* DRBG_PERS;
     const char* _ssl_ca_der;
     size_t      _ssl_ca_der_len;
-    
+
     static const char* _hostname;
     static uint16_t _port;
 
